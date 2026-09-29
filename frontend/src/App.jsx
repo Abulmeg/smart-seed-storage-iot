@@ -1,4 +1,15 @@
 import { useEffect, useState } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+
 import "./index.css";
 
 const initialTelemetry = {
@@ -29,6 +40,7 @@ function Metric({ label, value, unit }) {
 function App() {
   const [telemetry, setTelemetry] = useState(initialTelemetry);
   const [connected, setConnected] = useState(false);
+  const [history, setHistory] = useState([]);
 
   const [equipment, setEquipment] = useState({
     ventilation: "unknown",
@@ -83,8 +95,14 @@ function App() {
       }
 
       if (message.type === "telemetry") {
-        setTelemetry(message.data);
-      }
+  setTelemetry(message.data);
+
+  setHistory((current) => {
+    const updated = [...current, message.data];
+
+    return updated.slice(-60);
+      });
+    }
 
       if (message.type === "equipment_status") {
         setEquipment((current) => ({
@@ -104,6 +122,28 @@ function App() {
       socket.close();
     };
   }, []);
+
+  useEffect(() => {
+  async function loadHistory() {
+    try {
+      const response = await fetch(
+        "http://localhost:3000/api/readings"
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load history");
+      }
+
+      const readings = await response.json();
+
+      setHistory(readings);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  loadHistory();
+}, []);
 
   return (
     <main className="app">
@@ -154,6 +194,83 @@ function App() {
 
         <Metric label="Air quality" value={telemetry.airQuality} unit="" />
       </section>
+
+              <section className="panel history-panel">
+  <div className="panel-header">
+    <div>
+      <h2>Historical trends</h2>
+      <p>Recent environmental readings</p>
+    </div>
+  </div>
+
+  <div className="chart-container">
+    {history.length === 0 ? (
+      <div className="chart-empty">
+        No historical readings available
+      </div>
+    ) : (
+      <ResponsiveContainer width="100%" height={320}>
+        <LineChart data={history}>
+          <CartesianGrid
+            strokeDasharray="3 3"
+            vertical={false}
+          />
+
+          <XAxis
+            dataKey="receivedAt"
+            tickFormatter={(value) =>
+              new Date(value).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })
+            }
+            minTickGap={28}
+          />
+
+          <YAxis yAxisId="temperature" width={45} />
+
+          <YAxis
+            yAxisId="humidity"
+            orientation="right"
+            width={45}
+          />
+
+          <Tooltip
+            labelFormatter={(value) =>
+              new Date(value).toLocaleString()
+            }
+          />
+
+          <Legend />
+
+          <Line
+            yAxisId="temperature"
+            type="monotone"
+            dataKey="temperature"
+            name="Temperature °C"
+            stroke="#333333"
+            strokeWidth={2}
+            dot={false}
+            isAnimationActive={false}
+          />
+
+          <Line
+            yAxisId="humidity"
+            type="monotone"
+            dataKey="relativeHumidity"
+            name="Humidity %"
+            stroke="#777777"
+            strokeWidth={2}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    )}
+  </div>
+</section>
+
 
       <section className="panel">
         <div className="panel-header">

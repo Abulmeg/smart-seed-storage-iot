@@ -245,3 +245,21 @@ input {
   outline: 2px solid #59636e;
   outline-offset: 2px;
 }
+
+.history-panel {
+  margin-top: 32px;
+}
+
+.chart-container {
+  width: 100%;
+  padding: 24px 16px 16px;
+}
+
+.chart-empty {
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #747b82;
+  font-size: 14px;
+}
