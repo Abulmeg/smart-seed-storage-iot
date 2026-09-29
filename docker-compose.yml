@@ -7,3 +7,20 @@ services:
     volumes:
       - ./infrastructure/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     restart: unless-stopped
+
+  postgres:
+    image: postgres:17
+    container_name: seed-storage-postgres
+    environment:
+      POSTGRES_DB: seed_storage
+      POSTGRES_USER: seed_admin
+      POSTGRES_PASSWORD: seed_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

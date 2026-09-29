@@ -1,3 +1,4 @@
+const pool = require("./db");
 const express = require("express");
 
 const app = express();
@@ -79,6 +80,23 @@ app.post("/api/readings", (req, res) => {
     message: "Reading received",
     reading: reading
   });
+});
+
+app.get("/api/db-health", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW() AS current_time");
+
+    res.json({
+      status: "ok",
+      databaseTime: result.rows[0].current_time
+    });
+  } catch (error) {
+    console.error("Database connection failed:", error.message);
+
+    res.status(500).json({
+      status: "error"
+    });
+  }
 });
 
 app.listen(PORT, () => {
