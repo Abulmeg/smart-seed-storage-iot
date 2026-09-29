@@ -1,0 +1,209 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f5f6f7;
+  color: #202327;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.app {
+  width: min(1180px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 40px 0 64px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #d9dde2;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.topbar p {
+  margin: 6px 0 0;
+  color: #697077;
+  font-size: 14px;
+}
+
+.connection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d9dde2;
+  border-radius: 4px;
+  background: #ffffff;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.connection.online .status-dot {
+  background: #27824a;
+}
+
+.connection.offline .status-dot {
+  background: #b33a3a;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 36px;
+  margin-bottom: 18px;
+}
+
+.section-header h2,
+.panel-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.section-header p,
+.panel-header p {
+  margin: 5px 0 0;
+  color: #747b82;
+  font-size: 13px;
+}
+
+.updated {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  color: #747b82;
+  font-size: 12px;
+}
+
+.updated strong {
+  color: #30343a;
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.metric {
+  min-height: 122px;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid #d9dde2;
+  border-radius: 6px;
+}
+
+.metric-label {
+  display: block;
+  color: #6c737a;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+
+.metric-value {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-unit {
+  margin-left: 5px;
+  color: #70777e;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.panel {
+  margin-top: 32px;
+  background: #ffffff;
+  border: 1px solid #d9dde2;
+  border-radius: 6px;
+}
+
+.panel-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #e2e5e8;
+}
+
+.equipment-list {
+  padding: 0 20px;
+}
+
+.equipment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  border-bottom: 1px solid #eceef0;
+  font-size: 14px;
+}
+
+.equipment-row:last-child {
+  border-bottom: 0;
+}
+
+.equipment-row strong {
+  font-weight: 550;
+  color: #5d646b;
+}
+
+@media (max-width: 900px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .app {
+    width: min(100% - 28px, 1180px);
+    padding-top: 24px;
+  }
+
+  .topbar,
+  .section-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .updated {
+    align-items: flex-start;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
