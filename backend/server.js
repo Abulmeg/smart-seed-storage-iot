@@ -1,11 +1,24 @@
-const pool = require("./db");
 const express = require("express");
+
+const cors = require("cors");
 
 const http = require("http");
 const { WebSocketServer, WebSocket } = require("ws");
 
+const pool = require("./db");
+const { startMqttClient } = require("./mqttClient");
+
+
 const app = express();
 const PORT = 3000;
+
+app.use(
+  cors({
+    origin: "http://localhost:5173"
+  })
+);
+
+app.use(express.json());
 
 const server = http.createServer(app);
 
@@ -14,14 +27,11 @@ const wss = new WebSocketServer({
   path: "/ws"
 });
 
-wss.on("connection", (socket) => {
-  console.log("Dashboard connected by WebSocket");
-});
-
-app.use(express.json());
-
-const { startMqttClient } = require("./mqttClient");
-//const readings = [];
+const equipmentState = {
+  ventilation: "unknown",
+  cooling: "unknown",
+  dehumidification: "unknown"
+};
 
 const sensors = [
   {
@@ -44,9 +54,51 @@ const sensors = [
   }
 ];
 
+wss.on("connection", async (socket) => {
+  console.log("Dashboard connected by WebSocket");
+
+  try {
+    const result = await pool.query(`
+  SELECT
+    sensor_id AS "sensorId",
+    zone_id AS "zoneId",
+    temperature,
+    relative_humidity AS "relativeHumidity",
+    co2,
+    light_intensity AS "lightIntensity",
+    air_quality AS "airQuality",
+    sensor_timestamp AS "timestamp",
+    received_at AS "receivedAt"
+    FROM sensor_readings
+    ORDER BY received_at DESC
+    LIMIT 1
+  `);
+
+    const latestTelemetry =
+      result.rows.length > 0 ? result.rows[0] : null;
+
+    socket.send(
+      JSON.stringify({
+        type: "snapshot",
+        data: {
+          telemetry: latestTelemetry,
+          equipment: equipmentState
+        }
+      })
+    );
+  } catch (error) {
+    console.error("Failed to send dashboard snapshot:", error.message);
+  }
+});
+
+//const readings = [];
+
+
 const mqttClient = startMqttClient({
   onReading: async (reading) => {
     try {
+      const receivedAt = new Date().toISOString();
+
       await pool.query(
         `INSERT INTO sensor_readings (
           sensor_id,
@@ -77,7 +129,10 @@ const mqttClient = startMqttClient({
 
       const message = JSON.stringify({
         type: "telemetry",
-        data: reading
+        data: {
+          ...reading,
+          receivedAt,
+        },
       });
 
       wss.clients.forEach((client) => {
@@ -91,9 +146,11 @@ const mqttClient = startMqttClient({
   },
 
   onEquipmentStatus: (status) => {
-    console.log(
-      `Equipment status: ${status.equipment} = ${status.state}`
-    );
+  equipmentState[status.equipment] = status.state;
+
+  console.log(
+    `Equipment status: ${status.equipment} = ${status.state}`
+  );
 
     const message = JSON.stringify({
       type: "equipment_status",
@@ -113,7 +170,7 @@ app.get("/api/readings", async (req, res) => {
     const result = await pool.query(`
       SELECT *
       FROM sensor_readings
-      ORDER BY sensor_timestamp DESC
+      ORDER BY received_at DESC
       LIMIT 100
     `);
 
@@ -152,14 +209,14 @@ app.get("/api/sensors/:id", (req, res) => {
   res.json(sensor);
 });
 
-app.post("/api/readings", (req, res) => {
-  const reading = req.body;
+// app.post("/api/readings", (req, res) => {
+//   const reading = req.body;
 
-  res.status(201).json({
-    message: "Reading received",
-    reading: reading
-  });
-});
+//   res.status(201).json({
+//     message: "Reading received",
+//     reading: reading
+//   });
+// });
 
 app.get("/api/db-health", async (req, res) => {
   try {

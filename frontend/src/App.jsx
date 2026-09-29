@@ -10,6 +10,7 @@ const initialTelemetry = {
   lightIntensity: null,
   airQuality: null,
   timestamp: null,
+  receivedAt: null,
 };
 
 function Metric({ label, value, unit }) {
@@ -29,6 +30,40 @@ function App() {
   const [telemetry, setTelemetry] = useState(initialTelemetry);
   const [connected, setConnected] = useState(false);
 
+  const [equipment, setEquipment] = useState({
+    ventilation: "unknown",
+    cooling: "unknown",
+    dehumidification: "unknown",
+  });
+
+  const [pendingEquipment, setPendingEquipment] = useState(null);
+
+  async function sendEquipmentCommand(equipmentName, state) {
+    setPendingEquipment(equipmentName);
+
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/zones/zone-3/equipment/${equipmentName}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            state,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Command failed");
+      }
+    } catch (error) {
+      console.error(error);
+      setPendingEquipment(null);
+    }
+  }
+
   useEffect(() => {
     const socket = new WebSocket("ws://localhost:3000/ws");
 
@@ -39,8 +74,25 @@ function App() {
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data);
 
+      if (message.type === "snapshot") {
+        if (message.data.telemetry) {
+          setTelemetry(message.data.telemetry);
+        }
+
+        setEquipment(message.data.equipment);
+      }
+
       if (message.type === "telemetry") {
         setTelemetry(message.data);
+      }
+
+      if (message.type === "equipment_status") {
+        setEquipment((current) => ({
+          ...current,
+          [message.data.equipment]: message.data.state,
+        }));
+
+        setPendingEquipment(null);
       }
     };
 
@@ -76,19 +128,15 @@ function App() {
         <div className="updated">
           Last update
           <strong>
-            {telemetry.timestamp
-              ? new Date(telemetry.timestamp).toLocaleTimeString()
+            {telemetry.receivedAt
+              ? new Date(telemetry.receivedAt).toLocaleTimeString()
               : "--"}
           </strong>
         </div>
       </section>
 
       <section className="metrics-grid">
-        <Metric
-          label="Temperature"
-          value={telemetry.temperature}
-          unit="°C"
-        />
+        <Metric label="Temperature" value={telemetry.temperature} unit="°C" />
 
         <Metric
           label="Relative humidity"
@@ -96,11 +144,7 @@ function App() {
           unit="%"
         />
 
-        <Metric
-          label="CO₂"
-          value={telemetry.co2}
-          unit="ppm"
-        />
+        <Metric label="CO₂" value={telemetry.co2} unit="ppm" />
 
         <Metric
           label="Light intensity"
@@ -108,11 +152,7 @@ function App() {
           unit="lx"
         />
 
-        <Metric
-          label="Air quality"
-          value={telemetry.airQuality}
-          unit=""
-        />
+        <Metric label="Air quality" value={telemetry.airQuality} unit="" />
       </section>
 
       <section className="panel">
@@ -125,18 +165,72 @@ function App() {
 
         <div className="equipment-list">
           <div className="equipment-row">
-            <span>Ventilation</span>
-            <strong>Off</strong>
+            <div>
+              <span>Ventilation</span>
+              <small>{equipment.ventilation}</small>
+            </div>
+
+            <button
+              disabled={pendingEquipment === "ventilation"}
+              onClick={() =>
+                sendEquipmentCommand(
+                  "ventilation",
+                  equipment.ventilation === "on" ? "off" : "on",
+                )
+              }
+            >
+              {pendingEquipment === "ventilation"
+                ? "Waiting..."
+                : equipment.ventilation === "on"
+                  ? "Turn off"
+                  : "Turn on"}
+            </button>
           </div>
 
           <div className="equipment-row">
-            <span>Cooling</span>
-            <strong>Off</strong>
+            <div>
+              <span>Cooling</span>
+              <small>{equipment.cooling}</small>
+            </div>
+
+            <button
+              disabled={pendingEquipment === "cooling"}
+              onClick={() =>
+                sendEquipmentCommand(
+                  "cooling",
+                  equipment.cooling === "on" ? "off" : "on",
+                )
+              }
+            >
+              {pendingEquipment === "cooling"
+                ? "Waiting..."
+                : equipment.cooling === "on"
+                  ? "Turn off"
+                  : "Turn on"}
+            </button>
           </div>
 
           <div className="equipment-row">
-            <span>Dehumidification</span>
-            <strong>Off</strong>
+            <div>
+              <span>Dehumidification</span>
+              <small>{equipment.dehumidification}</small>
+            </div>
+
+            <button
+              disabled={pendingEquipment === "dehumidification"}
+              onClick={() =>
+                sendEquipmentCommand(
+                  "dehumidification",
+                  equipment.dehumidification === "on" ? "off" : "on",
+                )
+              }
+            >
+              {pendingEquipment === "dehumidification"
+                ? "Waiting..."
+                : equipment.dehumidification === "on"
+                  ? "Turn off"
+                  : "Turn on"}
+            </button>
           </div>
         </div>
       </section>

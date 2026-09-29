@@ -144,6 +144,7 @@ input {
   color: #70777e;
   font-size: 14px;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .panel {
@@ -206,4 +207,41 @@ input {
   .metrics-grid {
     grid-template-columns: 1fr;
   }
+}
+.equipment-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.equipment-row small {
+  color: #737a81;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.equipment-row button {
+  min-width: 82px;
+  padding: 7px 11px;
+  border: 1px solid #c8cdd2;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #25292e;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.equipment-row button:hover:not(:disabled) {
+  background: #f3f4f5;
+}
+
+.equipment-row button:disabled {
+  color: #8d9399;
+  cursor: default;
+  background: #f5f6f7;
+}
+
+.equipment-row button:focus-visible {
+  outline: 2px solid #59636e;
+  outline-offset: 2px;
 }
