@@ -39,6 +39,9 @@ const thresholds = {
   co2Max: 760,
 };
 
+const sensorLastSeen = {};
+const sensorDropoutActive = {};
+
 const sensors = [
   {
     id: "sensor-017",
@@ -135,9 +138,24 @@ function checkThresholds(reading) {
   return alerts;
 }
 
+function broadcastAlert(alert) {
+  const message = JSON.stringify({
+    type: "alert",
+    data: alert,
+  });
+
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+}
+
 
 const mqttClient = startMqttClient({
   onReading: async (reading) => {
+    sensorLastSeen[reading.sensorId] = Date.now();
+    sensorDropoutActive[reading.sensorId] = false;
     try {
       const receivedAt = new Date().toISOString();
 
@@ -223,6 +241,37 @@ alerts.forEach((alert) => {
     });
   }
 });
+
+setInterval(() => {
+  const now = Date.now();
+
+  Object.entries(sensorLastSeen).forEach(
+    ([sensorId, lastSeen]) => {
+      const secondsWithoutReading =
+        (now - lastSeen) / 1000;
+
+      if (
+        secondsWithoutReading > 15 &&
+        !sensorDropoutActive[sensorId]
+      ) {
+        sensorDropoutActive[sensorId] = true;
+
+        const alert = {
+          type: "sensor_dropout",
+          message: "Sensor stopped reporting",
+          sensorId,
+          timestamp: new Date().toISOString(),
+        };
+
+        broadcastAlert(alert);
+
+        console.log(
+          `ALERT: ${sensorId} stopped reporting`
+        );
+      }
+    }
+  );
+}, 5000);
 
 app.get("/api/readings", async (req, res) => {
   try {
