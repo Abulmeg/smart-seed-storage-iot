@@ -7,7 +7,7 @@ const PORT = 3000;
 app.use(express.json());
 
 const { startMqttSubscriber } = require("./mqttClient");
-const readings = [];
+//const readings = [];
 
 const sensors = [
   {
@@ -30,22 +30,57 @@ const sensors = [
   }
 ];
 
-startMqttSubscriber((reading, topic) => {
-  const storedReading = {
-    ...reading,
-    topic,
-    receivedAt: new Date().toISOString()
-  };
+startMqttSubscriber(async (reading) => {
+  try {
+    await pool.query(
+      `INSERT INTO sensor_readings (
+        sensor_id,
+        zone_id,
+        temperature,
+        relative_humidity,
+        co2,
+        light_intensity,
+        air_quality,
+        sensor_timestamp
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        reading.sensorId,
+        reading.zoneId,
+        reading.temperature,
+        reading.relativeHumidity,
+        reading.co2,
+        reading.lightIntensity,
+        reading.airQuality,
+        reading.timestamp
+      ]
+    );
 
-  readings.push(storedReading);
-
-  console.log(
-    `${reading.sensorId}: ${reading.temperature} °C`
-  );
+    console.log(
+      `Stored ${reading.sensorId}: ${reading.temperature} °C`
+    );
+  } catch (error) {
+    console.error("Failed to store reading:", error.message);
+  }
 });
 
-app.get("/api/readings", (req, res) => {
-  res.json(readings);
+app.get("/api/readings", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT *
+      FROM sensor_readings
+      ORDER BY sensor_timestamp DESC
+      LIMIT 100
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Failed to load readings:", error.message);
+
+    res.status(500).json({
+      error: "Failed to load readings"
+    });
+  }
 });
 
 app.get("/health", (req, res) => {
