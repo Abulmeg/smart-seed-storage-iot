@@ -20,7 +20,7 @@ wss.on("connection", (socket) => {
 
 app.use(express.json());
 
-const { startMqttSubscriber } = require("./mqttClient");
+const { startMqttClient } = require("./mqttClient");
 //const readings = [];
 
 const sensors = [
@@ -44,40 +44,60 @@ const sensors = [
   }
 ];
 
-startMqttSubscriber(async (reading) => {
-  try {
-    await pool.query(
-      `INSERT INTO sensor_readings (
-        sensor_id,
-        zone_id,
-        temperature,
-        relative_humidity,
-        co2,
-        light_intensity,
-        air_quality,
-        sensor_timestamp
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [
-        reading.sensorId,
-        reading.zoneId,
-        reading.temperature,
-        reading.relativeHumidity,
-        reading.co2,
-        reading.lightIntensity,
-        reading.airQuality,
-        reading.timestamp
-      ]
-    );
+const mqttClient = startMqttClient({
+  onReading: async (reading) => {
+    try {
+      await pool.query(
+        `INSERT INTO sensor_readings (
+          sensor_id,
+          zone_id,
+          temperature,
+          relative_humidity,
+          co2,
+          light_intensity,
+          air_quality,
+          sensor_timestamp
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          reading.sensorId,
+          reading.zoneId,
+          reading.temperature,
+          reading.relativeHumidity,
+          reading.co2,
+          reading.lightIntensity,
+          reading.airQuality,
+          reading.timestamp
+        ]
+      );
 
+      console.log(
+        `Stored ${reading.sensorId}: ${reading.temperature} °C`
+      );
+
+      const message = JSON.stringify({
+        type: "telemetry",
+        data: reading
+      });
+
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(message);
+        }
+      });
+    } catch (error) {
+      console.error("Failed to store reading:", error.message);
+    }
+  },
+
+  onEquipmentStatus: (status) => {
     console.log(
-      `Stored ${reading.sensorId}: ${reading.temperature} °C`
+      `Equipment status: ${status.equipment} = ${status.state}`
     );
 
-    // Send the same new reading to all connected WebSocket clients
     const message = JSON.stringify({
-      type: "telemetry",
-      data: reading
+      type: "equipment_status",
+      data: status
     });
 
     wss.clients.forEach((client) => {
@@ -85,9 +105,6 @@ startMqttSubscriber(async (reading) => {
         client.send(message);
       }
     });
-
-  } catch (error) {
-    console.error("Failed to store reading:", error.message);
   }
 });
 
@@ -160,6 +177,62 @@ app.get("/api/db-health", async (req, res) => {
     });
   }
 });
+
+app.post(
+  "/api/zones/:zoneId/equipment/:equipment",
+  (req, res) => {
+    const { zoneId, equipment } = req.params;
+    const { state } = req.body;
+
+    const allowedEquipment = [
+      "ventilation",
+      "cooling",
+      "dehumidification"
+    ];
+
+    const allowedStates = ["on", "off"];
+
+    if (!allowedEquipment.includes(equipment)) {
+      return res.status(400).json({
+        error: "Invalid equipment"
+      });
+    }
+
+    if (!allowedStates.includes(state)) {
+      return res.status(400).json({
+        error: "State must be on or off"
+      });
+    }
+
+    const commandId = Date.now().toString();
+
+    const command = {
+      commandId,
+      equipment,
+      state,
+      requestedAt: new Date().toISOString()
+    };
+
+    const topic =
+      `seed-storage/${zoneId}/controller/commands/${equipment}`;
+
+    mqttClient.publish(
+      topic,
+      JSON.stringify(command),
+      { qos: 1 },
+      (error) => {
+        if (error) {
+          console.error("Failed to publish command:", error.message);
+        }
+      }
+    );
+
+    res.status(202).json({
+      message: "Command accepted",
+      commandId
+    });
+  }
+);
 
 server.listen(PORT, () => {
   console.log(`Seed Storage API running on http://localhost:${PORT}`);

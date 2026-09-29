@@ -1,29 +1,41 @@
 const mqtt = require("mqtt");
 
 const MQTT_URL = "mqtt://localhost:1883";
-const TELEMETRY_TOPIC = "seed-storage/+/+/telemetry";
 
-function startMqttSubscriber(onReading) {
+const TELEMETRY_TOPIC = "seed-storage/+/+/telemetry";
+const EQUIPMENT_STATUS_TOPIC = "seed-storage/+/controller/status";
+
+function startMqttClient({ onReading, onEquipmentStatus }) {
   const client = mqtt.connect(MQTT_URL);
 
   client.on("connect", () => {
     console.log("Connected to MQTT broker");
 
-    client.subscribe(TELEMETRY_TOPIC, { qos: 1 }, (error) => {
-      if (error) {
-        console.error("Failed to subscribe:", error.message);
-        return;
-      }
+    client.subscribe(
+      [TELEMETRY_TOPIC, EQUIPMENT_STATUS_TOPIC],
+      { qos: 1 },
+      (error) => {
+        if (error) {
+          console.error("MQTT subscription failed:", error.message);
+          return;
+        }
 
-      console.log(`Subscribed to ${TELEMETRY_TOPIC}`);
-    });
+        console.log("Subscribed to telemetry and equipment status");
+      }
+    );
   });
 
   client.on("message", (topic, payload) => {
     try {
-      const reading = JSON.parse(payload.toString());
+      const message = JSON.parse(payload.toString());
 
-      onReading(reading, topic);
+      if (topic.endsWith("/telemetry")) {
+        onReading(message, topic);
+      }
+
+      if (topic.endsWith("/controller/status")) {
+        onEquipmentStatus(message, topic);
+      }
     } catch (error) {
       console.error("Invalid MQTT message:", error.message);
     }
@@ -37,5 +49,5 @@ function startMqttSubscriber(onReading) {
 }
 
 module.exports = {
-  startMqttSubscriber
+  startMqttClient
 };
