@@ -33,6 +33,12 @@ const equipmentState = {
   dehumidification: "unknown"
 };
 
+const thresholds = {
+  temperatureMax: 26.5,
+  humidityMax: 63,
+  co2Max: 760,
+};
+
 const sensors = [
   {
     id: "sensor-017",
@@ -93,6 +99,42 @@ wss.on("connection", async (socket) => {
 
 //const readings = [];
 
+function checkThresholds(reading) {
+  const alerts = [];
+
+  if (reading.temperature > thresholds.temperatureMax) {
+    alerts.push({
+      type: "temperature",
+      message: `Temperature exceeded ${thresholds.temperatureMax} °C`,
+      value: reading.temperature,
+      sensorId: reading.sensorId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  if (reading.relativeHumidity > thresholds.humidityMax) {
+    alerts.push({
+      type: "humidity",
+      message: `Humidity exceeded ${thresholds.humidityMax}%`,
+      value: reading.relativeHumidity,
+      sensorId: reading.sensorId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  if (reading.co2 > thresholds.co2Max) {
+    alerts.push({
+      type: "co2",
+      message: `CO₂ exceeded ${thresholds.co2Max} ppm`,
+      value: reading.co2,
+      sensorId: reading.sensorId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  return alerts;
+}
+
 
 const mqttClient = startMqttClient({
   onReading: async (reading) => {
@@ -126,6 +168,23 @@ const mqttClient = startMqttClient({
       console.log(
         `Stored ${reading.sensorId}: ${reading.temperature} °C`
       );
+
+      const alerts = checkThresholds(reading);
+
+alerts.forEach((alert) => {
+  const alertMessage = JSON.stringify({
+    type: "alert",
+    data: alert,
+  });
+
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(alertMessage);
+    }
+  });
+
+  console.log(`ALERT: ${alert.message}`);
+});
 
       const message = JSON.stringify({
         type: "telemetry",
@@ -169,17 +228,33 @@ app.get("/api/readings", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT *
-      FROM sensor_readings
-      ORDER BY received_at DESC
-      LIMIT 100
+      FROM (
+        SELECT
+          sensor_id AS "sensorId",
+          zone_id AS "zoneId",
+          temperature,
+          relative_humidity AS "relativeHumidity",
+          co2,
+          light_intensity AS "lightIntensity",
+          air_quality AS "airQuality",
+          sensor_timestamp AS "timestamp",
+          received_at AS "receivedAt"
+        FROM sensor_readings
+        ORDER BY received_at DESC
+        LIMIT 60
+      ) AS latest_readings
+      ORDER BY "receivedAt" ASC
     `);
 
     res.json(result.rows);
   } catch (error) {
-    console.error("Failed to load readings:", error.message);
+    console.error(
+      "Failed to load readings:",
+      error.message
+    );
 
     res.status(500).json({
-      error: "Failed to load readings"
+      error: "Failed to load readings",
     });
   }
 });

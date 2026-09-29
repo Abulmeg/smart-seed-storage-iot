@@ -41,6 +41,7 @@ function App() {
   const [telemetry, setTelemetry] = useState(initialTelemetry);
   const [connected, setConnected] = useState(false);
   const [history, setHistory] = useState([]);
+  const [alerts, setAlerts] = useState([]);
 
   const [equipment, setEquipment] = useState({
     ventilation: "unknown",
@@ -85,6 +86,12 @@ function App() {
 
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data);
+
+      if (message.type === "alert") {
+          setAlerts((current) => {
+            return [message.data, ...current].slice(0, 10);
+        });
+      }
 
       if (message.type === "snapshot") {
         if (message.data.telemetry) {
@@ -270,7 +277,35 @@ function App() {
     )}
   </div>
 </section>
+      <section className="panel alerts-panel">
+  <div className="panel-header">
+    <div>
+      <h2>Alerts</h2>
+      <p>Environmental threshold warnings</p>
+    </div>
+  </div>
 
+  <div className="alerts-list">
+    {alerts.length === 0 ? (
+      <div className="alert-empty">
+        No active alerts
+      </div>
+    ) : (
+      alerts.map((alert, index) => (
+        <div className="alert-row" key={`${alert.timestamp}-${index}`}>
+          <div>
+            <strong>{alert.message}</strong>
+            <small>Sensor {alert.sensorId}</small>
+          </div>
+
+          <span>
+            {new Date(alert.timestamp).toLocaleTimeString()}
+          </span>
+        </div>
+      ))
+    )}
+  </div>
+</section>
 
       <section className="panel">
         <div className="panel-header">

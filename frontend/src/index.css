@@ -263,3 +263,43 @@ input {
   color: #747b82;
   font-size: 14px;
 }
+
+.alerts-list {
+  padding: 0 20px;
+}
+
+.alert-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 58px;
+  border-bottom: 1px solid #eceef0;
+}
+
+.alert-row:last-child {
+  border-bottom: 0;
+}
+
+.alert-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.alert-row strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.alert-row small,
+.alert-row span {
+  color: #747b82;
+  font-size: 12px;
+}
+
+.alert-empty {
+  padding: 24px 0;
+  color: #747b82;
+  font-size: 14px;
+}
