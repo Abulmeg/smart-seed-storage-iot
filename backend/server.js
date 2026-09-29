@@ -8,6 +8,12 @@ const { WebSocketServer, WebSocket } = require("ws");
 const pool = require("./db");
 const { startMqttClient } = require("./mqttClient");
 
+const {
+  authenticateCredentials,
+  createToken,
+  authenticateToken,
+  authorizeRoles,
+} = require("./auth");
 
 const app = express();
 const PORT = 3000;
@@ -273,6 +279,44 @@ setInterval(() => {
   );
 }, 5000);
 
+app.post("/api/auth/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password) {
+    return res.status(400).json({
+      error: "Username and password are required",
+    });
+  }
+
+  const user = await authenticateCredentials(
+    username,
+    password
+  );
+
+  if (!user) {
+    return res.status(401).json({
+      error: "Invalid username or password",
+    });
+  }
+
+  const token = createToken(user);
+
+  res.json({
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      role: user.role,
+    },
+  });
+});
+
+app.get("/api/me", authenticateToken, (req, res) => {
+  res.json({
+    user: req.user,
+  });
+});
+
 app.get("/api/readings", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -361,6 +405,8 @@ app.get("/api/db-health", async (req, res) => {
 
 app.post(
   "/api/zones/:zoneId/equipment/:equipment",
+  authenticateToken,
+  authorizeRoles("operator", "admin"),
   (req, res) => {
     const { zoneId, equipment } = req.params;
     const { state } = req.body;
