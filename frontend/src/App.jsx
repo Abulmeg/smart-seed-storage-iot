@@ -37,6 +37,56 @@ function Metric({ label, value, unit }) {
   );
 }
 
+function Login({ onLogin, error }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    onLogin(username, password);
+  }
+
+  return (
+    <main className="login-page">
+      <form className="login-card" onSubmit={handleSubmit}>
+        <h1>Seed Storage Control</h1>
+        <p>Sign in to access the monitoring system</p>
+
+        <label>
+          Username
+          <input
+            value={username}
+            onChange={(event) =>
+              setUsername(event.target.value)
+            }
+          />
+        </label>
+
+        <label>
+          Password
+          <input
+            type="password"
+            value={password}
+            onChange={(event) =>
+              setPassword(event.target.value)
+            }
+          />
+        </label>
+
+        {error && (
+          <div className="login-error">
+            {error}
+          </div>
+        )}
+
+        <button type="submit">
+          Sign in
+        </button>
+      </form>
+    </main>
+  );
+}
+
 function App() {
   const [telemetry, setTelemetry] = useState(initialTelemetry);
   const [connected, setConnected] = useState(false);
@@ -49,7 +99,63 @@ function App() {
     dehumidification: "unknown",
   });
 
+  const [token, setToken] = useState(
+  sessionStorage.getItem("token")
+);
+
+const [user, setUser] = useState(() => {
+  const savedUser = sessionStorage.getItem("user");
+  return savedUser ? JSON.parse(savedUser) : null;
+});
+
+const [loginError, setLoginError] = useState("");
+
   const [pendingEquipment, setPendingEquipment] = useState(null);
+
+  async function login(username, password) {
+  setLoginError("");
+
+  try {
+    const response = await fetch(
+      "http://localhost:3000/api/auth/login",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username,
+          password,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Invalid username or password");
+    }
+
+    const data = await response.json();
+
+    setToken(data.token);
+    setUser(data.user);
+
+    sessionStorage.setItem("token", data.token);
+    sessionStorage.setItem(
+      "user",
+      JSON.stringify(data.user)
+    );
+  } catch (error) {
+    setLoginError(error.message);
+  }
+}
+
+function logout() {
+  setToken(null);
+  setUser(null);
+
+  sessionStorage.removeItem("token");
+  sessionStorage.removeItem("user");
+}
 
   async function sendEquipmentCommand(equipmentName, state) {
     setPendingEquipment(equipmentName);
@@ -61,6 +167,7 @@ function App() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             state,
@@ -152,6 +259,15 @@ function App() {
   loadHistory();
 }, []);
 
+  if (!token || !user) {
+  return (
+    <Login
+      onLogin={login}
+      error={loginError}
+    />
+    );
+  }
+
   return (
     <main className="app">
       <header className="topbar">
@@ -164,6 +280,27 @@ function App() {
           <span className="status-dot" />
           {connected ? "Live" : "Disconnected"}
         </div>
+        <div className="topbar-actions">
+  <span className="user-info">
+    {user.username} · {user.role}
+  </span>
+
+  <div
+    className={`connection ${
+      connected ? "online" : "offline"
+    }`}
+  >
+    <span className="status-dot" />
+    {connected ? "Live" : "Disconnected"}
+  </div>
+
+  <button
+    className="logout-button"
+    onClick={logout}
+  >
+    Sign out
+  </button>
+</div>
       </header>
 
       <section className="section-header">
@@ -322,6 +459,7 @@ function App() {
               <small>{equipment.ventilation}</small>
             </div>
 
+            {user.role !== "viewer" && (
             <button
               disabled={pendingEquipment === "ventilation"}
               onClick={() =>
@@ -337,6 +475,7 @@ function App() {
                   ? "Turn off"
                   : "Turn on"}
             </button>
+            )}
           </div>
 
           <div className="equipment-row">
@@ -345,21 +484,23 @@ function App() {
               <small>{equipment.cooling}</small>
             </div>
 
+            {user.role !== "viewer" && (
             <button
               disabled={pendingEquipment === "cooling"}
-              onClick={() =>
-                sendEquipmentCommand(
-                  "cooling",
-                  equipment.cooling === "on" ? "off" : "on",
-                )
-              }
-            >
-              {pendingEquipment === "cooling"
-                ? "Waiting..."
-                : equipment.cooling === "on"
-                  ? "Turn off"
-                  : "Turn on"}
+    onClick={() =>
+      sendEquipmentCommand(
+        "cooling",
+        equipment.cooling === "on" ? "off" : "on",
+      )
+    }
+  >
+    {pendingEquipment === "cooling"
+      ? "Waiting..."
+      : equipment.cooling === "on"
+        ? "Turn off"
+        : "Turn on"}
             </button>
+            )}
           </div>
 
           <div className="equipment-row">
@@ -368,21 +509,23 @@ function App() {
               <small>{equipment.dehumidification}</small>
             </div>
 
-            <button
-              disabled={pendingEquipment === "dehumidification"}
-              onClick={() =>
-                sendEquipmentCommand(
-                  "dehumidification",
-                  equipment.dehumidification === "on" ? "off" : "on",
-                )
-              }
-            >
-              {pendingEquipment === "dehumidification"
-                ? "Waiting..."
-                : equipment.dehumidification === "on"
-                  ? "Turn off"
-                  : "Turn on"}
-            </button>
+            {user.role !== "viewer" && (
+  <button
+    disabled={pendingEquipment === "dehumidification"}
+    onClick={() =>
+      sendEquipmentCommand(
+        "dehumidification",
+        equipment.dehumidification === "on" ? "off" : "on",
+      )
+    }
+  >
+    {pendingEquipment === "dehumidification"
+      ? "Waiting..."
+      : equipment.dehumidification === "on"
+        ? "Turn off"
+        : "Turn on"}
+  </button>
+)}
           </div>
         </div>
       </section>
