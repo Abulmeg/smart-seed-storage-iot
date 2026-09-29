@@ -1,8 +1,22 @@
 const pool = require("./db");
 const express = require("express");
 
+const http = require("http");
+const { WebSocketServer, WebSocket } = require("ws");
+
 const app = express();
 const PORT = 3000;
+
+const server = http.createServer(app);
+
+const wss = new WebSocketServer({
+  server,
+  path: "/ws"
+});
+
+wss.on("connection", (socket) => {
+  console.log("Dashboard connected by WebSocket");
+});
 
 app.use(express.json());
 
@@ -59,6 +73,19 @@ startMqttSubscriber(async (reading) => {
     console.log(
       `Stored ${reading.sensorId}: ${reading.temperature} °C`
     );
+
+    // Send the same new reading to all connected WebSocket clients
+    const message = JSON.stringify({
+      type: "telemetry",
+      data: reading
+    });
+
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+
   } catch (error) {
     console.error("Failed to store reading:", error.message);
   }
@@ -134,6 +161,7 @@ app.get("/api/db-health", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Seed Storage API running on http://localhost:${PORT}`);
+  console.log(`WebSocket available at ws://localhost:${PORT}/ws`);
 });
