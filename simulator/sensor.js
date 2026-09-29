@@ -1,3 +1,4 @@
+require("dotenv").config();
 const mqtt = require("mqtt");
 
 const MQTT_URL = "mqtt://localhost:1883";
@@ -7,7 +8,10 @@ const zoneId = "zone-3";
 
 const topic = `seed-storage/${zoneId}/${sensorId}/telemetry`;
 
-const client = mqtt.connect(MQTT_URL);
+const client = mqtt.connect(MQTT_URL, {
+  username: process.env.MQTT_USERNAME,
+  password: process.env.MQTT_PASSWORD,
+});
 
 function randomValue(base, variation) {
   return Number(

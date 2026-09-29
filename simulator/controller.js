@@ -1,6 +1,12 @@
+require("dotenv").config();
 const mqtt = require("mqtt");
 
-const client = mqtt.connect("mqtt://localhost:1883");
+const MQTT_URL = "mqtt://localhost:1883";
+
+const client = mqtt.connect(MQTT_URL, {
+  username: process.env.MQTT_USERNAME,
+  password: process.env.MQTT_PASSWORD,
+});
 
 const zoneId = "zone-3";
 

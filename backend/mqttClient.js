@@ -1,4 +1,5 @@
 const mqtt = require("mqtt");
+require("dotenv").config();
 
 const MQTT_URL = "mqtt://localhost:1883";
 
@@ -6,8 +7,10 @@ const TELEMETRY_TOPIC = "seed-storage/+/+/telemetry";
 const EQUIPMENT_STATUS_TOPIC = "seed-storage/+/controller/status";
 
 function startMqttClient({ onReading, onEquipmentStatus }) {
-  const client = mqtt.connect(MQTT_URL);
-
+  const client = mqtt.connect(MQTT_URL, {
+  username: process.env.MQTT_USERNAME,
+  password: process.env.MQTT_PASSWORD,
+  });
   client.on("connect", () => {
     console.log("Connected to MQTT broker");
 
