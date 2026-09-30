@@ -6,9 +6,23 @@ The system receives sensor data through MQTT, stores readings in PostgreSQL, and
 
 It also supports equipment control, alerts, sensor dropout detection, authentication, and role-based access.
 
+## Screenshots
+
+### Login
+
+![Login](./screenshots/login.png)
+
+### Live Dashboard
+
+![Live Dashboard](./screenshots/dashboard.png)
+
+### Alerts and Equipment Control
+
+![Alerts and Equipment Control](./screenshots/alerts-equipment.png)
+
 ## Architecture
 
-### Telemetry flow
+### Telemetry Flow
 
 ```text
 ┌────────────────────┐
@@ -32,7 +46,7 @@ It also supports equipment control, alerts, sensor dropout detection, authentica
 └───────────────┘   └──────────────────┘
 ```
 
-### Control flow
+### Control Flow
 
 ```text
 ┌──────────────────┐
@@ -65,18 +79,18 @@ It also supports equipment control, alerts, sensor dropout detection, authentica
 - Live environmental telemetry
 - Temperature, humidity, CO2, light, and air quality monitoring
 - PostgreSQL historical storage
-- Live dashboard updates through WebSocket
+- WebSocket live updates
 - Historical temperature and humidity charts
-- Remote ventilation, cooling, and dehumidification control
-- Controller acknowledgement before updating equipment state
-- Threshold alerts
+- Ventilation, cooling, and dehumidification control
+- Controller acknowledgement for equipment commands
+- Environmental threshold alerts
 - Sensor dropout detection
 - JWT authentication
 - Viewer, Operator, and Admin roles
 - Authenticated MQTT connections
 - Docker-based PostgreSQL and Mosquitto services
 
-## How it works
+## How It Works
 
 The sensor simulator publishes telemetry to Mosquitto using MQTT.
 
@@ -84,7 +98,7 @@ The backend subscribes to the telemetry topic, stores each reading in PostgreSQL
 
 Historical readings are loaded through the REST API.
 
-Equipment commands follow the opposite direction:
+Equipment commands follow this flow:
 
 ```text
 Dashboard
@@ -96,7 +110,7 @@ Dashboard
 
 The controller reports its new state back through MQTT.
 
-The dashboard changes the equipment state only after that confirmation is received.
+The dashboard updates the equipment state only after that confirmation is received.
 
 ## MQTT Topics
 
@@ -137,7 +151,7 @@ MQTT QoS 1 is used for telemetry and equipment commands.
 - Vite
 - Recharts
 
-### Data and infrastructure
+### Data and Infrastructure
 
 - PostgreSQL
 - Eclipse Mosquitto
@@ -147,8 +161,6 @@ MQTT QoS 1 is used for telemetry and equipment commands.
 ## Authentication and Roles
 
 The backend uses JWT authentication.
-
-Three roles are included in the prototype:
 
 ### Viewer
 
@@ -166,7 +178,7 @@ Has equipment control access and can be extended with configuration permissions.
 
 Authorization is enforced by the backend.
 
-The frontend only hides controls based on the role. It is not used as the security check.
+The frontend hides controls based on the user's role, but the backend performs the actual permission check.
 
 ## Alerts
 
@@ -217,6 +229,11 @@ smart-seed-storage-iot/
 ├── infrastructure/
 │   ├── mosquitto/
 │   └── postgres/
+│
+├── screenshots/
+│   ├── login.png
+│   ├── dashboard.png
+│   └── alerts-equipment.png
 │
 ├── docker-compose.yml
 └── README.md
